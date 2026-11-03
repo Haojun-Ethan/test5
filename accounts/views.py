@@ -9,19 +9,32 @@ import qrcode
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User2FA, MFAChallenge
+from .models import User2FA, MFAChallenge, User
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     MFALoginSerializer,
+    UserAdminSerializer, # new added
 )
+
+
+# --------------------- User Management -------------------
+from rest_framework.permissions import BasePermission
+class IsAdminRole(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.role == 'ADMIN')
+class UserViewSet(viewsets.ModelViewSet): # new added
+    queryset = User.objects.all().order_by('-date_joined') # new added
+    serializer_class = UserAdminSerializer # new added
+    permission_classes = [IsAdminRole]  # new added
+# ---------------------------------------------------------
 
 
 class RegisterView(generics.CreateAPIView):
@@ -303,3 +316,17 @@ class MFALoginView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class UserMeView(APIView): # new added
+    permission_classes = [IsAuthenticated] # new added
+
+    def get(self, request): # new added
+        user = request.user # new added
+        return Response({ # new added
+            "id": user.id, # new added
+            "username": user.username, # new added
+            "email": user.email, # new added
+            "role": user.role, # new added
+            "is_2fa_enabled": user.is_2fa_enabled, # new added
+        }) # new added

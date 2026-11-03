@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -214,7 +215,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         schedule = getattr(obj.module, 'moduleschedule', None)
         warn_days = schedule.reminder_days_before if schedule else 7
 
-        if obj.due_at - now <= timezone.timedelta(days=warn_days):
+        if obj.due_at - now <= timedelta(days=warn_days):
             return 'DUE_SOON'
 
         return 'COMPLIANT'

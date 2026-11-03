@@ -46,3 +46,9 @@ class MFALoginSerializer(serializers.Serializer):
         min_length=6,
         max_length=6
     )
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role', 'is_2fa_enabled']

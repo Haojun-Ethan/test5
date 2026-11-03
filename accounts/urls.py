@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import path, include # new added
+from rest_framework.routers import DefaultRouter # new added
 
 from .views import (
     RegisterView,
@@ -7,7 +8,12 @@ from .views import (
     Verify2FAView,
     LoginView,
     MFALoginView,
+    UserMeView, # new added
+    UserViewSet, # new added
 )
+
+router = DefaultRouter() # new added
+router.register('users', UserViewSet, basename='user') # new added
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
@@ -21,4 +27,8 @@ urlpatterns = [
     path("2fa/qr/", GenerateQRCodeView.as_view(), name="2fa-qr"),
 
     path("2fa/verify/", Verify2FAView.as_view(), name="2fa-verify"),
+
+    path("me/", UserMeView.as_view(), name="user-me"), # new added
+
+    path('', include(router.urls)), # new added
 ]
