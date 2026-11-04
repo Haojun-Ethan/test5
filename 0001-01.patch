@@ -1,0 +1,367 @@
+From b20a8851274e6a166c87f240fed52e4177fe8210 Mon Sep 17 00:00:00 2001
+From: Haojun-Ethan <haojun.jia@uon.edu.au>
+Date: Tue, 3 Nov 2026 18:42:03 +1100
+Subject: [PATCH] 01
+
+---
+ .../__pycache__/serializers.cpython-314.pyc   | Bin 2091 -> 2538 bytes
+ accounts/__pycache__/urls.cpython-314.pyc     | Bin 963 -> 1369 bytes
+ accounts/__pycache__/views.cpython-314.pyc    | Bin 9769 -> 11527 bytes
+ accounts/serializers.py                       |   8 +-
+ accounts/urls.py                              |  12 +-
+ accounts/views.py                             |  33 +++++-
+ changes_annotated.diff                        |   0
+ defended/__pycache__/urls.cpython-314.pyc     | Bin 1335 -> 1392 bytes
+ defended/urls.py                              |   1 +
+ .../__pycache__/serializers.cpython-314.pyc   | Bin 11381 -> 11390 bytes
+ modules/serializers.py                        |   3 +-
+ .../__pycache__/serializers.cpython-314.pyc   | Bin 0 -> 1922 bytes
+ quizzes/__pycache__/urls.cpython-314.pyc      | Bin 0 -> 1070 bytes
+ quizzes/__pycache__/views.cpython-314.pyc     | Bin 0 -> 6171 bytes
+ quizzes/serializers.py                        |  20 ++++
+ quizzes/urls.py                               |  21 ++++
+ quizzes/views.py                              | 106 +++++++++++++++++-
+ updates.zip                                   | Bin 0 -> 7605 bytes
+ 18 files changed, 196 insertions(+), 8 deletions(-)
+ create mode 100644 changes_annotated.diff
+ create mode 100644 quizzes/__pycache__/serializers.cpython-314.pyc
+ create mode 100644 quizzes/__pycache__/urls.cpython-314.pyc
+ create mode 100644 quizzes/__pycache__/views.cpython-314.pyc
+ create mode 100644 quizzes/serializers.py
+ create mode 100644 quizzes/urls.py
+ create mode 100644 updates.zip
+
+
+
+diff --git a/accounts/serializers.py b/accounts/serializers.py
+index d28889a..64cbbc4 100644
+--- a/accounts/serializers.py
++++ b/accounts/serializers.py
+@@ -45,4 +45,10 @@ class MFALoginSerializer(serializers.Serializer):
+     otp = serializers.CharField(
+         min_length=6,
+         max_length=6
+-    )
+\ No newline at end of file
++    )
++
++
++class UserAdminSerializer(serializers.ModelSerializer):
++    class Meta:
++        model = User
++        fields = ['id', 'username', 'email', 'role', 'is_2fa_enabled']
+\ No newline at end of file
+diff --git a/accounts/urls.py b/accounts/urls.py
+index d9aedba..27c5126 100644
+--- a/accounts/urls.py
++++ b/accounts/urls.py
+@@ -1,4 +1,5 @@
+-from django.urls import path
++from django.urls import path, include # new added
++from rest_framework.routers import DefaultRouter # new added
+ 
+ from .views import (
+     RegisterView,
+@@ -7,8 +8,13 @@ from .views import (
+     Verify2FAView,
+     LoginView,
+     MFALoginView,
++    UserMeView, # new added
++    UserViewSet, # new added
+ )
+ 
++router = DefaultRouter() # new added
++router.register('users', UserViewSet, basename='user') # new added
++
+ urlpatterns = [
+     path("register/", RegisterView.as_view(), name="register"),
+ 
+@@ -21,4 +27,8 @@ urlpatterns = [
+     path("2fa/qr/", GenerateQRCodeView.as_view(), name="2fa-qr"),
+ 
+     path("2fa/verify/", Verify2FAView.as_view(), name="2fa-verify"),
++
++    path("me/", UserMeView.as_view(), name="user-me"), # new added
++
++    path('', include(router.urls)), # new added
+ ]
+\ No newline at end of file
+diff --git a/accounts/views.py b/accounts/views.py
+index b863e46..2e82582 100644
+--- a/accounts/views.py
++++ b/accounts/views.py
+@@ -9,21 +9,34 @@ import qrcode
+ from django.contrib.auth import authenticate
+ from django.utils import timezone
+ 
+-from rest_framework import generics, status
++from rest_framework import generics, status, viewsets
+ from rest_framework.permissions import AllowAny, IsAuthenticated
+ from rest_framework.response import Response
+ from rest_framework.views import APIView
+ 
+ from rest_framework_simplejwt.tokens import RefreshToken
+ 
+-from .models import User2FA, MFAChallenge
++from .models import User2FA, MFAChallenge, User
+ from .serializers import (
+     RegisterSerializer,
+     LoginSerializer,
+     MFALoginSerializer,
++    UserAdminSerializer, # new added
+ )
+ 
+ 
++# --------------------- User Management -------------------
++from rest_framework.permissions import BasePermission
++class IsAdminRole(BasePermission):
++    def has_permission(self, request, view):
++        return bool(request.user and request.user.is_authenticated and request.user.role == 'ADMIN')
++class UserViewSet(viewsets.ModelViewSet): # new added
++    queryset = User.objects.all().order_by('-date_joined') # new added
++    serializer_class = UserAdminSerializer # new added
++    permission_classes = [IsAdminRole]  # new added
++# ---------------------------------------------------------
++
++
+ class RegisterView(generics.CreateAPIView):
+     serializer_class = RegisterSerializer
+     permission_classes = [AllowAny]
+@@ -302,4 +315,18 @@ class MFALoginView(APIView):
+                 "refresh": str(refresh),
+             },
+             status=status.HTTP_200_OK
+-        )
+\ No newline at end of file
++        )
++
++
++class UserMeView(APIView): # new added
++    permission_classes = [IsAuthenticated] # new added
++
++    def get(self, request): # new added
++        user = request.user # new added
++        return Response({ # new added
++            "id": user.id, # new added
++            "username": user.username, # new added
++            "email": user.email, # new added
++            "role": user.role, # new added
++            "is_2fa_enabled": user.is_2fa_enabled, # new added
++        }) # new added
+\ No newline at end of file
+diff --git a/changes_annotated.diff b/changes_annotated.diff
+new file mode 100644
+index 0000000..e69de29
+diff --git a/defended/__pycache__/urls.cpython-314.pyc b/defended/__pycache__/urls.cpython-314.pyc
+index de4fda824f7f6ded7027b7e4118c1ffdf0a1fc74..885a3f380509d6fc3122a4b5440daae70c9abb22 100644
+GIT binary patch
+delta 159
+zcmdna^?^%Wn~#@^0SHPiKF?xgVPJR+;=lkWl=1n)MD=B|?6EA03_+YGj1W;1CI}tN
+z3KZp<cutd(wS+r}TbV(VXA|R7CN`eJ(#)!=$#<FGF&0fe!{V*a!P5~mQGABnWkHS0
+n9GW*-I4*F?UXa(nE^mHG-u$w><z*JD58Q10OikQH0zjhy?cXG~
+
+delta 93
+zcmeyswVg{{n~#@^0SFRH4rN_sW?*;>;=lk0l=1n>MD=BioD*MZa<Y_g2XQGgXmW3s
+hVSLIonV;nuWAfy0EZ&m?SVg%xS^1foxQhgU+5nT|6TScd
+
+diff --git a/defended/urls.py b/defended/urls.py
+index 672cb64..c952df3 100644
+--- a/defended/urls.py
++++ b/defended/urls.py
+@@ -22,5 +22,6 @@ urlpatterns = [
+     path('admin/', admin.site.urls),
+     path('accounts/', include('accounts.urls')),
+     path('', include('modules.urls')),
++        path('', include('quizzes.urls')), 
+     path('api/token/refresh/', TokenRefreshView.as_view()),
+ ]
+
+
+diff --git a/modules/serializers.py b/modules/serializers.py
+index 696e57e..189b16b 100644
+--- a/modules/serializers.py
++++ b/modules/serializers.py
+@@ -1,3 +1,4 @@
++from datetime import timedelta
+ from django.utils import timezone
+ from django.utils.text import slugify
+ 
+@@ -214,7 +215,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
+         schedule = getattr(obj.module, 'moduleschedule', None)
+         warn_days = schedule.reminder_days_before if schedule else 7
+ 
+-        if obj.due_at - now <= timezone.timedelta(days=warn_days):
++        if obj.due_at - now <= timedelta(days=warn_days):
+             return 'DUE_SOON'
+ 
+         return 'COMPLIANT'
+
+diff --git a/quizzes/serializers.py b/quizzes/serializers.py
+new file mode 100644
+index 0000000..82dda6c
+--- /dev/null
++++ b/quizzes/serializers.py
+@@ -0,0 +1,20 @@
++from rest_framework import serializers
++from .models import Question, Choice, Attempt, AttemptAnswer
++
++class ChoiceSerializer(serializers.ModelSerializer):
++    class Meta:
++        model = Choice
++
++        fields = ['id', 'question', 'text', 'order', 'is_correct'] 
++
++class QuestionSerializer(serializers.ModelSerializer):
++    choices = ChoiceSerializer(many=True, read_only=True)
++
++    class Meta:
++        model = Question
++        fields = ['id', 'module', 'text', 'question_type', 'explanation', 'points', 'order', 'choices']
++
++class AttemptSerializer(serializers.ModelSerializer):
++    class Meta:
++        model = Attempt
++        fields = ['id', 'module', 'started_at', 'submitted_at', 'score_percent', 'passed']
+\ No newline at end of file
+diff --git a/quizzes/urls.py b/quizzes/urls.py
+new file mode 100644
+index 0000000..c4be375
+--- /dev/null
++++ b/quizzes/urls.py
+@@ -0,0 +1,21 @@
++from django.urls import path, include # new added
++from rest_framework.routers import DefaultRouter # new added
++from .views import (
++    ModuleQuestionsView, 
++    StartAttemptView, 
++    SubmitAttemptView,
++    QuestionViewSet, # new added
++    ChoiceViewSet # new added
++)
++
++router = DefaultRouter() # new added
++router.register('questions', QuestionViewSet) # new added
++router.register('choices', ChoiceViewSet) # new added
++
++urlpatterns = [
++    path('modules/<int:pk>/questions/', ModuleQuestionsView.as_view(), name='module-questions'),
++    path('modules/<int:pk>/attempts/', StartAttemptView.as_view(), name='start-attempt'),
++    path('attempts/<int:pk>/submit/', SubmitAttemptView.as_view(), name='submit-attempt'),
++    
++    path('', include(router.urls)), # new added
++]
+\ No newline at end of file
+diff --git a/quizzes/views.py b/quizzes/views.py
+index 91ea44a..01ee22d 100644
+--- a/quizzes/views.py
++++ b/quizzes/views.py
+@@ -1,3 +1,105 @@
+-from django.shortcuts import render
++from rest_framework import status
++from rest_framework.views import APIView
++from rest_framework.response import Response
++from rest_framework.permissions import IsAuthenticated
++from rest_framework import viewsets # new added
++from django.shortcuts import get_object_or_404
++from django.utils import timezone
++from decimal import Decimal
+ 
+-# Create your views here.
++from modules.models import Module
++from .models import Question, Choice, Attempt, AttemptAnswer
++from .serializers import QuestionSerializer, AttemptSerializer, ChoiceSerializer # new added
++
++class ModuleQuestionsView(APIView):
++    permission_classes = [IsAuthenticated]
++
++    def get(self, request, pk):
++        questions = Question.objects.filter(module_id=pk, is_active=True).order_by('order')
++        serializer = QuestionSerializer(questions, many=True)
++        return Response(serializer.data)
++
++
++class StartAttemptView(APIView):
++    permission_classes = [IsAuthenticated]
++
++    def post(self, request, pk):
++        module = get_object_or_404(Module, pk=pk)
++        attempt = Attempt.objects.create(user=request.user, module=module)
++        return Response({
++            'id': attempt.id,
++            'moduleId': module.id,
++            'startedAt': attempt.started_at
++        }, status=status.HTTP_201_CREATED)
++
++
++class SubmitAttemptView(APIView):
++    permission_classes = [IsAuthenticated]
++
++    def post(self, request, pk):
++        attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
++        
++        if attempt.submitted_at:
++            return Response({'message': 'This attempt has already been submitted.'}, status=status.HTTP_400_BAD_REQUEST)
++
++        answers_data = request.data.get('answers', {})
++        total_points = 0
++        earned_points = 0
++        
++        questions = Question.objects.filter(module=attempt.module, is_active=True)
++        
++        for question in questions:
++            total_points += question.points
++            user_answer = answers_data.get(str(question.id)) or answers_data.get(question.id)
++            
++            if user_answer is not None:
++                correct_choices = list(question.choices.filter(is_correct=True).values_list('id', flat=True))
++                is_correct = False
++                
++                if question.question_type == 'SINGLE':
++                    is_correct = int(user_answer) in correct_choices
++                elif question.question_type == 'MULTIPLE':
++                    if isinstance(user_answer, list):
++                        user_choices = [int(uid) for uid in user_answer]
++                        is_correct = set(user_choices) == set(correct_choices)
++                
++                if is_correct:
++                    earned_points += question.points
++                    AttemptAnswer.objects.create(
++                        attempt=attempt, 
++                        question=question, 
++                        selected_choice_id=int(user_answer[0]) if isinstance(user_answer, list) else int(user_answer),
++                        is_correct=True, 
++                        points_awarded=question.points
++                    )
++
++        if total_points > 0:
++            score_percent = (Decimal(earned_points) / Decimal(total_points)) * 100
++        else:
++            score_percent = Decimal(0)
++
++        passed = score_percent >= attempt.module.pass_mark
++
++        attempt.submitted_at = timezone.now()
++        attempt.score_percent = score_percent
++        attempt.passed = passed
++        attempt.save()
++
++        return Response({
++            'id': attempt.id,
++            'scorePercent': float(score_percent),
++            'passed': passed,
++            'userAnswers': answers_data
++        })
++
++
++class QuestionViewSet(viewsets.ModelViewSet): # new added
++    queryset = Question.objects.all() # new added
++    serializer_class = QuestionSerializer # new added
++    permission_classes = [IsAuthenticated] # new added
++
++
++class ChoiceViewSet(viewsets.ModelViewSet): # new added
++    queryset = Choice.objects.all() # new added
++    serializer_class = ChoiceSerializer # new added
++    permission_classes = [IsAuthenticated] # new added
+\ No newline at end of file
+

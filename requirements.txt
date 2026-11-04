@@ -1,1 +1,12 @@
 
+Django>=5.0
+djangorestframework
+djangorestframework-simplejwt
+psycopg2-binary
+pyotp
+qrcode
+django-cors-headers
+django-allauth
+gunicorn
+dj-database-url
+whitenoise
