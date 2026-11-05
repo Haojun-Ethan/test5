@@ -5,6 +5,7 @@ djangorestframework-simplejwt
 psycopg2-binary
 pyotp
 qrcode
+pillow
 django-cors-headers
 django-allauth
 gunicorn
