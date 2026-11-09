@@ -1,21 +1,13 @@
-from django.urls import path, include # new added
-from rest_framework.routers import DefaultRouter # new added
-from .views import (
-    ModuleQuestionsView, 
-    StartAttemptView, 
-    SubmitAttemptView,
-    QuestionViewSet, # new added
-    ChoiceViewSet # new added
-)
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
-router = DefaultRouter() # new added
-router.register('questions', QuestionViewSet) # new added
-router.register('choices', ChoiceViewSet) # new added
+from .views import AttemptViewSet, GradebookView, QuestionViewSet
+
+router = DefaultRouter()
+router.register('questions', QuestionViewSet, basename='question')
+router.register('attempts', AttemptViewSet, basename='attempt')
 
 urlpatterns = [
-    path('modules/<int:pk>/questions/', ModuleQuestionsView.as_view(), name='module-questions'),
-    path('modules/<int:pk>/attempts/', StartAttemptView.as_view(), name='start-attempt'),
-    path('attempts/<int:pk>/submit/', SubmitAttemptView.as_view(), name='submit-attempt'),
-    
-    path('', include(router.urls)), # new added
+    path('gradebook/', GradebookView.as_view(), name='gradebook'),
+    path('', include(router.urls)),
 ]

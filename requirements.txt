@@ -1,13 +1,18 @@
+# Core framework
+Django==6.1.1
+djangorestframework==3.18.1
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
 
-Django>=5.0
-djangorestframework
-djangorestframework-simplejwt
-psycopg2-binary
-pyotp
-qrcode
-pillow
-django-cors-headers
-django-allauth
-gunicorn
+# Authentication and MFA (the mfa extra installs fido2)
+django-allauth[mfa]==65.19.3
+pyotp==2.10.0
+qrcode[pil]==8.2
+
+# Database
+psycopg2-binary==2.9.13
 dj-database-url
+
+# Deployment
+gunicorn
 whitenoise

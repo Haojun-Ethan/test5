@@ -10,9 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 
-import os                    
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'accounts',
     'modules',
     'quizzes',
@@ -57,10 +58,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-
     'whitenoise.middleware.WhiteNoiseMiddleware',
-
-
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -100,10 +98,11 @@ WSGI_APPLICATION = 'defended.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+# Uses DATABASE_URL when set (e.g. on the hosting platform), otherwise the local PostgreSQL database.
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600
+        default='postgres://postgres:postgres@localhost:5432/defended_db',
+        conn_max_age=600,
     )
 }
 
@@ -143,7 +142,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
@@ -158,6 +158,28 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # Per-IP limits on the auth endpoints (per-user once authenticated).
+    # Throttle counters live in the cache: use a shared cache (e.g. Redis) when running more than one process.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '10/min',
+        'mfa': '10/min',
+        'register': '10/hour',
+        'confirm_identity': '10/hour',
+    },
 }
+
+SIMPLE_JWT = {
+    # Short-lived access tokens: revoking a session (logout, admin 2FA reset) blacklists the
+    # refresh token, but an access token already issued stays valid until it expires.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'TOKEN_REFRESH_SERIALIZER': 'accounts.serializers.SafeTokenRefreshSerializer',
+}
+
+# Account lockout: this many failed password/2FA attempts within the window blocks further tries.
+LOGIN_LOCKOUT_THRESHOLD = 5
+LOGIN_LOCKOUT_WINDOW = timedelta(minutes=15)
 
 AUTH_USER_MODEL = 'accounts.User'

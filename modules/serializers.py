@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -36,10 +38,17 @@ class UserBriefSerializer(serializers.Serializer):
 
 class SectionSerializer(serializers.ModelSerializer):
 
+    # Whether the requesting user has marked this section complete. Set by SectionViewSet's
+    # annotation; null where sections are nested in a module (the annotation isn't there).
+    completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Section
-        fields = ['id', 'module', 'title', 'body', 'order', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'module', 'title', 'body', 'order', 'created_at', 'completed']
+        read_only_fields = ['id', 'created_at', 'completed']
+
+    def get_completed(self, obj):
+        return getattr(obj, 'completed', None)
 
 
 class ScheduleSerializer(serializers.ModelSerializer):
@@ -186,6 +195,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     status = serializers.SerializerMethodField()
 
+    progress = serializers.SerializerMethodField()
+
     class Meta:
         model = Enrollment
         fields = [
@@ -200,12 +211,27 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'due_at',
             'last_passed_at',
             'status',
+            'progress',
         ]
-        read_only_fields = ['id', 'user', 'module_title', 'pathway_name', 'enrolled_at', 'last_passed_at', 'status']
+        read_only_fields = ['id', 'user', 'module_title', 'pathway_name', 'enrolled_at', 'last_passed_at', 'status', 'progress']
+
+    def get_progress(self, obj):
+        # The list view annotates these counts; single objects (create/assign) fall back to queries.
+        total = getattr(obj, 'sections_total', None)
+        completed = getattr(obj, 'sections_completed', None)
+
+        if total is None:
+            total = Section.objects.filter(module_id=obj.module_id).count()
+            completed = SectionProgress.objects.filter(
+                user_id=obj.user_id, section__module_id=obj.module_id
+            ).count()
+
+        return {'completed': completed, 'total': total}
 
     def get_status(self, obj):
         if obj.due_at is None:
-            return 'PENDING'
+            # A passed one-off module never falls due again.
+            return 'COMPLIANT' if obj.last_passed_at else 'PENDING'
 
         now = timezone.now()
 
@@ -226,7 +252,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         if validated_data.get('due_at') is None:
             schedule = getattr(module, 'moduleschedule', None)
             if schedule:
-                validated_data['due_at'] = timezone.now() + timezone.timedelta(days=schedule.initial_due_days)
+                validated_data['due_at'] = timezone.now() + timedelta(days=schedule.initial_due_days)
 
         return super().create(validated_data)
 
@@ -239,3 +265,37 @@ class SectionProgressSerializer(serializers.ModelSerializer):
         model = SectionProgress
         fields = ['id', 'user', 'section', 'completed_at']
         read_only_fields = ['id', 'user', 'completed_at']
+
+_ID_FIELD = serializers.IntegerField(min_value=1)
+
+
+def parse_id(value, name):
+    """Validate an id from a request body or query string, so junk gets a 400 instead of a 500."""
+    try:
+        return _ID_FIELD.run_validation(value)
+    except serializers.ValidationError as exc:
+        raise serializers.ValidationError({name: exc.detail})
+
+
+class AssignUsersSerializer(serializers.Serializer):
+
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        default=list
+    )
+
+    def validate_user_ids(self, user_ids):
+        found = set(
+            get_user_model().objects.filter(id__in=user_ids).values_list('id', flat=True)
+        )
+        missing = sorted(set(user_ids) - found)
+
+        if missing:
+            raise serializers.ValidationError(f'Unknown user ids: {missing}')
+
+        return list(dict.fromkeys(user_ids))
+
+
+class AssignModuleSerializer(AssignUsersSerializer):
+
+    module = serializers.IntegerField(min_value=1)

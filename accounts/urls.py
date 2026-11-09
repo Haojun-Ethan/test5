@@ -1,5 +1,4 @@
-from django.urls import path, include # new added
-from rest_framework.routers import DefaultRouter # new added
+from django.urls import path
 
 from .views import (
     RegisterView,
@@ -7,13 +6,15 @@ from .views import (
     GenerateQRCodeView,
     Verify2FAView,
     LoginView,
+    LogoutView,
     MFALoginView,
-    UserMeView, # new added
-    UserViewSet, # new added
+    MeView,
+    UserListView,
+    UserDetailView,
+    Disable2FAView,
+    RegenerateRecoveryCodesView,
+    AdminReset2FAView,
 )
-
-router = DefaultRouter() # new added
-router.register('users', UserViewSet, basename='user') # new added
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
@@ -22,13 +23,23 @@ urlpatterns = [
 
     path("login/2fa/", MFALoginView.as_view(), name="login-2fa"),
 
+    path("logout/", LogoutView.as_view(), name="logout"),
+
+    path("me/", MeView.as_view(), name="me"),
+
+    path("users/", UserListView.as_view(), name="user-list"),
+
+    path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
+
     path("2fa/setup/", Generate2FAView.as_view(), name="2fa-setup"),
 
     path("2fa/qr/", GenerateQRCodeView.as_view(), name="2fa-qr"),
 
     path("2fa/verify/", Verify2FAView.as_view(), name="2fa-verify"),
 
-    path("me/", UserMeView.as_view(), name="user-me"), # new added
+    path("2fa/disable/", Disable2FAView.as_view(), name="2fa-disable"),
 
-    path('', include(router.urls)), # new added
+    path("2fa/recovery-codes/", RegenerateRecoveryCodesView.as_view(), name="2fa-recovery-codes"),
+
+    path("users/<int:pk>/2fa/reset/", AdminReset2FAView.as_view(), name="2fa-admin-reset"),
 ]
