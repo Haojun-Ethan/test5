@@ -397,11 +397,13 @@ def load(modules, pathway, owner, publish=True, force=False):
     report = []
     saved = []
 
-    for parsed in modules:
+    # Files are sorted by name, so the 01-, 02-, ... prefixes set each module's place in the list.
+    for position, parsed in enumerate(modules, start=1):
         values = {
             **parsed.fields,
             'description': parsed.description or parsed.fields.get('summary', ''),
             'status': 'PUBLISHED' if publish else 'DRAFT',
+            'order': position,
         }
         slug = values.pop('slug')
 

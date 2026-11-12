@@ -74,6 +74,11 @@ class Module(models.Model):
         default=1
     )
 
+    # Position in the module list, lowest first. Ties fall back to id (creation order).
+    order = models.PositiveIntegerField(
+        default=0
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True
     )
@@ -81,6 +86,9 @@ class Module(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True
     )
+
+    class Meta:
+        ordering = ['order', 'id']
 
     def __str__(self):
         return self.title

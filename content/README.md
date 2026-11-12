@@ -11,6 +11,9 @@ content/modules/
   04-mitigation-and-defensive-controls.md
   05-prevention-best-practices-zero-trust.md
   pathway.md                      <- the pathway that groups the modules, in file-name order
+
+The 01-, 02-, ... prefixes set the order modules appear in the app (and in the pathway). To move a
+module, rename its file and run load_modules again. This resets any order changed in the app.
 ```
 
 ## Loading the modules

@@ -105,6 +105,7 @@ class ModuleSerializer(serializers.ModelSerializer):
             'self_enroll_allowed',
             'estimated_minutes',
             'version',
+            'order',
             'sections',
             'schedule',
             'created_at',

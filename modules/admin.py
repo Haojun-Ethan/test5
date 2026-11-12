@@ -38,7 +38,10 @@ class ModuleScheduleInline(admin.StackedInline):
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):
 
-    list_display = ('title', 'status', 'category', 'created_by', 'pass_mark', 'updated_at')
+    list_display = ('title', 'order', 'status', 'category', 'created_by', 'pass_mark', 'updated_at')
+
+    # Reorder modules straight from the list page.
+    list_editable = ('order',)
 
     list_filter = ('status', 'category')
 
